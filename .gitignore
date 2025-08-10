@@ -60,3 +60,9 @@ htmlcov/
 .env.test.local
 .env.production.local
 .langgraph_api
+
+# Sensitive files
+credentials-gmail.json
+token.json
+langgraph.log
+*.log
