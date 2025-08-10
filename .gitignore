@@ -66,3 +66,4 @@ credentials-gmail.json
 token.json
 langgraph.log
 *.log
+DEPLOYMENT_SECRETS.txt
