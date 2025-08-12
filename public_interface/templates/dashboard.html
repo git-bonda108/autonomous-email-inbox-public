@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Assistant - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <style>
+        .status-badge {
+            @apply px-3 py-1 rounded-full text-xs font-medium;
+        }
+        .status-processed { @apply bg-green-100 text-green-800; }
+        .status-waiting { @apply bg-yellow-100 text-yellow-800; }
+        .priority-high { @apply border-l-4 border-l-red-500; }
+        .priority-medium { @apply border-l-4 border-l-blue-500; }
+        .priority-low { @apply border-l-4 border-l-gray-500; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                        <i data-feather="mail" class="w-5 h-5 text-white"></i>
+                    </div>
+                    <h1 class="ml-3 text-xl font-semibold text-gray-900">My-Autonomous-Email-Inbox</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Main Dashboard</a>
+                    <a href="/public" class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Public View</a>
+                    <a href="/agent-inbox" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center">
+                        <i data-feather="external-link" class="w-4 h-4 mr-2"></i>
+                        Agentic-AI Inbox
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Real-time Statistics -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-blue-100 rounded-lg">
+                        <i data-feather="mail" class="w-6 h-6 text-blue-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Emails</p>
+                        <p class="text-2xl font-semibold text-gray-900" id="total-emails">{{ data.statistics.total_emails }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-green-100 rounded-lg">
+                        <i data-feather="check-circle" class="w-6 h-6 text-green-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Processed</p>
+                        <p class="text-2xl font-semibold text-gray-900" id="processed-emails">{{ data.statistics.processed }}</p>
+                    </div>
+                </div>
+            </div>
+
+                                <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-8 border border-gray-100">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-xl">
+                                <i data-feather="users" class="w-7 h-7 text-white"></i>
+                            </div>
+                            <div class="ml-5">
+                                <p class="text-base font-semibold text-gray-600 mb-1">Human in the Loop (HITL)</p>
+                                <p class="text-3xl font-bold text-gray-900" id="waiting-emails">{{ data.statistics.waiting_action }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-purple-100 rounded-lg">
+                        <i data-feather="calendar" class="w-6 h-6 text-purple-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Meetings</p>
+                        <p class="text-2xl font-semibold text-gray-900" id="meetings">{{ data.statistics.scheduled_meetings }}</p>
+                    </div>
+                </div>
+            </div>
+
+                    <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-8 border border-gray-100">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-xl">
+                                <i data-feather="message-circle" class="w-7 h-7 text-white"></i>
+                            </div>
+                            <div class="ml-5">
+                                <p class="text-base font-semibold text-gray-600 mb-1">Responded Autonomously</p>
+                                <p class="text-3xl font-bold text-gray-900" id="auto-responses">{{ data.statistics.auto_responses }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-orange-100 rounded-lg">
+                        <i data-feather="bell" class="w-6 h-6 text-orange-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Notifications</p>
+                        <p class="text-2xl font-semibold text-gray-900" id="notifications">{{ data.statistics.notifications }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Email Feed -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-medium text-gray-900">Live Email Feed</h2>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm text-gray-500">Last updated: <span id="last-updated">{{ data.last_updated if data.last_updated else 'Unknown' }}</span></span>
+                        <button onclick="refreshData()" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                            <i data-feather="refresh-cw" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="divide-y divide-gray-200" id="email-feed">
+                {% for email in data.emails %}
+                <div class="p-6 hover:bg-gray-50 transition-colors duration-200 priority-{{ email.priority }}">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center space-x-3 mb-2">
+                                <h3 class="text-lg font-medium text-gray-900 truncate">{{ email.subject }}</h3>
+                                <span class="status-badge status-{{ email.status }}">
+                                    {% if email.status == 'processed' %}
+                                        <i data-feather="check-circle" class="w-3 h-3 inline mr-1"></i>
+                                        Processed
+                                    {% else %}
+                                        <i data-feather="clock" class="w-3 h-3 inline mr-1"></i>
+                                        Waiting Action
+                                    {% endif %}
+                                </span>
+                                {% if email.priority == 'high' %}
+                                    <span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">High Priority</span>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="flex items-center space-x-4 text-sm text-gray-600 mb-3">
+                                <span class="flex items-center">
+                                    <i data-feather="user" class="w-4 h-4 mr-1"></i>
+                                    {{ email.from }}
+                                </span>
+                                <span class="flex items-center">
+                                    <i data-feather="clock" class="w-4 h-4 mr-1"></i>
+                                    {{ email.timestamp if email.timestamp else 'Unknown' }}
+                                </span>
+                            </div>
+
+                            <div class="bg-gray-50 rounded-lg p-3 mb-3">
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <i data-feather="tool" class="w-4 h-4 text-blue-600"></i>
+                                    <span class="text-sm font-medium text-gray-700">Tool Called:</span>
+                                    <span class="text-sm text-blue-600 font-mono">{{ email.tool_called }}</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <i data-feather="arrow-right" class="w-4 h-4 text-green-600"></i>
+                                    <span class="text-sm font-medium text-gray-700">Next Action:</span>
+                                    <span class="text-sm text-gray-600">{{ email.next_action }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="ml-4 flex-shrink-0">
+                            {% if email.status == 'waiting_action' %}
+                                <a href="/agent-inbox" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    <i data-feather="edit" class="w-4 h-4 mr-1"></i>
+                                    Take Action
+                                </a>
+                            {% else %}
+                                <span class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white">
+                                    <i data-feather="check" class="w-4 h-4 mr-1"></i>
+                                    Completed
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- System Status -->
+        <div class="mt-8 bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">System Status</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="flex items-center p-4 border border-gray-200 rounded-lg">
+                    <div class="p-2 bg-green-100 rounded-lg">
+                        <i data-feather="check-circle" class="w-6 h-6 text-green-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-900">Agent Inbox</p>
+                        <p class="text-sm text-green-600">Active and Processing</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center p-4 border border-gray-200 rounded-lg">
+                    <div class="p-2 bg-blue-100 rounded-lg">
+                        <i data-feather="activity" class="w-6 h-6 text-blue-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-900">Auto-refresh</p>
+                        <p class="text-sm text-blue-600">Every 30 seconds</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Feather icons
+        feather.replace();
+
+        // Auto-refresh every 30 seconds
+        setInterval(refreshData, 30000);
+
+        function refreshData() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    // Update statistics
+                    document.getElementById('total-emails').textContent = data.statistics.total_emails;
+                    document.getElementById('processed-emails').textContent = data.statistics.processed;
+                    document.getElementById('waiting-emails').textContent = data.statistics.waiting_action;
+                    document.getElementById('meetings').textContent = data.statistics.scheduled_meetings;
+                    document.getElementById('auto-responses').textContent = data.statistics.auto_responses;
+                    document.getElementById('notifications').textContent = data.statistics.notifications;
+                    
+                    // Update timestamp
+                    document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+                })
+                .catch(error => {
+                    console.error('Error refreshing data:', error);
+                });
+        }
+
+        // Update timestamp every second
+        function updateTimestamp() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            document.getElementById('last-updated').textContent = timeString;
+        }
+        
+        setInterval(updateTimestamp, 1000);
+    </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
-# Vercel Deployment - LangSmith Integration
+# Vercel Deployment - LangGraph Platform Integration
 # This is the main Flask application for the autonomous email inbox dashboard
-# INTEGRATED WITH LANGSMITH FOR GRAPH DATA
+# INTEGRATED WITH LANGRAPH PLATFORM FOR REAL-TIME EMAIL DATA
 from flask import Flask, render_template, jsonify, request, redirect
 import requests
 import json
@@ -24,8 +24,8 @@ app.config['ENV'] = 'production'
 app.config['DEBUG'] = False
 app.config['TESTING'] = False
 
-# LangSmith Configuration
-LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY", "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")
+# LangGraph Platform Configuration
+LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY", "")
 LANGSMITH_ENDPOINT = os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com")
 GRAPH_ID = os.getenv("GRAPH_ID", "email_assistant_hitl_memory_gmail")
 
@@ -35,47 +35,47 @@ AVAILABLE_ASSISTANTS = {
 }
 
 try:
-    from langsmith_parser import LangSmithParser
-    LANGSMITH_PARSER_AVAILABLE = True
+    from langgraph_platform_fetcher import LangGraphPlatformFetcher
+    LANGRAPH_FETCHER_AVAILABLE = True
 except ImportError as e:
-    print(f"Warning: Could not import LangSmithParser: {e}")
-    LANGSMITH_PARSER_AVAILABLE = False
+    print(f"Warning: Could not import LangGraphPlatformFetcher: {e}")
+    LANGRAPH_FETCHER_AVAILABLE = False
 
-class LangSmithInterface:
-    """Interface to LangSmith system"""
+class LangGraphPlatformInterface:
+    """Interface to LangGraph Platform system"""
     
     def __init__(self):
-        self.langsmith_api_key = LANGSMITH_API_KEY
-        self.langsmith_endpoint = LANGSMITH_ENDPOINT
+        self.langgraph_api_key = LANGSMITH_API_KEY
+        self.langgraph_endpoint = LANGSMITH_ENDPOINT
         self.graph_id = GRAPH_ID
         
-        if LANGSMITH_PARSER_AVAILABLE:
-            self.parser = LangSmithParser()
+        if LANGRAPH_FETCHER_AVAILABLE:
+            self.fetcher = LangGraphPlatformFetcher()
         else:
-            self.parser = None
+            self.fetcher = None
     
     def test_connection(self) -> Dict:
-        """Test connection to LangSmith"""
-        if self.parser:
-            return self.parser.test_connection()
+        """Test connection to LangGraph Platform"""
+        if self.fetcher:
+            return self.fetcher.test_connection()
         else:
             return {
                 "status": "error",
-                "message": "LangSmith Parser not available",
-                "endpoint": self.langsmith_endpoint,
+                "message": "LangGraph Platform Fetcher not available",
+                "endpoint": self.langgraph_endpoint,
                 "graph_id": self.graph_id,
                 "timestamp": datetime.now().isoformat()
             }
     
     def get_production_data(self) -> Dict:
-        """Get real-time data from LangSmith"""
-        if self.parser:
-            return self.parser.get_dashboard_data()
+        """Get real-time data from LangGraph Platform"""
+        if self.fetcher:
+            return self.fetcher.get_dashboard_data()
         else:
             return self._get_fallback_data()
     
     def _get_fallback_data(self) -> Dict:
-        """Get fallback data when LangSmith is not accessible"""
+        """Get fallback data when LangGraph Platform is not accessible"""
         return {
             "statistics": {
                 "total_emails": 0,
@@ -93,13 +93,13 @@ class LangSmithInterface:
         }
 
 # Initialize the interface
-interface = LangSmithInterface()
+interface = LangGraphPlatformInterface()
 
 @app.route('/')
 def index():
-    """Main dashboard page with LangSmith data"""
+    """Main dashboard page with LangGraph Platform data"""
     try:
-        # Get real-time data from LangSmith
+        # Get real-time data from LangGraph Platform
         data = interface.get_production_data()
         
         # Test connection status
@@ -154,7 +154,7 @@ def langsmith():
 
 @app.route('/api/connection-test')
 def api_connection_test():
-    """Test connection to LangSmith"""
+    """Test connection to LangGraph Platform"""
     try:
         status = interface.test_connection()
         return jsonify({
@@ -173,7 +173,7 @@ def api_connection_test():
 def api_graph_status():
     """Get status of the deployed graph"""
     try:
-        # This would check the status of the graph in LangSmith
+        # This would check the status of the graph in LangGraph Platform
         # For now, return basic status
         return jsonify({
             "success": True,
@@ -199,7 +199,7 @@ def health():
         connection_status = interface.test_connection()
         return jsonify({
             "status": "healthy",
-            "langsmith": connection_status,
+            "langgraph_platform": connection_status,
             "graph_id": GRAPH_ID,
             "timestamp": datetime.now().isoformat()
         })
@@ -215,7 +215,7 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
 else:
     # For production deployment
-    print("Starting LangSmith Flask app in production mode")
-    print(f"LangSmith Endpoint: {LANGSMITH_ENDPOINT}")
+    print("Starting LangGraph Platform Flask app in production mode")
+    print(f"LangGraph Endpoint: {LANGSMITH_ENDPOINT}")
     print(f"Graph ID: {GRAPH_ID}")
-    print(f"LangSmith Parser Available: {LANGSMITH_PARSER_AVAILABLE}")
+    print(f"LangGraph Platform Fetcher Available: {LANGRAPH_FETCHER_AVAILABLE}")
