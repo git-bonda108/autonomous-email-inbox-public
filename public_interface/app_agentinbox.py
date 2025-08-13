@@ -375,14 +375,14 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
-        'service': 'LangSmith Powered Agent Inbox Dashboard',
+        'service': 'Autonomous-Agentic-AI-Inbox Dashboard',
         'version': '1.0.0',
         'graph_id': GRAPH_ID,
         'api_key_set': bool(LANGSMITH_API_KEY)
     })
 
 if __name__ == '__main__':
-    print("🚀 Starting LangSmith Powered Agent Inbox Dashboard...")
+    print("🚀 Starting Autonomous-Agentic-AI-Inbox Dashboard...")
     print(f"🔑 LangSmith API Key: {'✅ Set' if LANGSMITH_API_KEY else '❌ Missing'}")
     print(f"📊 Graph ID: {GRAPH_ID}")
     print(f"🌐 LangSmith Endpoint: {LANGSMITH_ENDPOINT}")
