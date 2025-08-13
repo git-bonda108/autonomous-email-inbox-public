@@ -286,18 +286,18 @@
         </div>
 
         <div class="action-buttons">
-            <h3>📧 LangSmith Data Controls</h3>
+            <h3>📧 Production Email Controls</h3>
             <button class="btn btn-success" onclick="runIngest()" id="ingestBtn">
-                🚀 Refresh Data
+                🚀 Run Email Ingest Now
             </button>
-            <button class="btn btn-info" onclick="startAutoRefresh()" id="autoRefreshBtn">
-                🔄 Start Auto-Refresh
+            <button class="btn btn-info" onclick="startCron()" id="startCronBtn">
+                ⏰ Start Background Cron
             </button>
-            <button class="btn btn-warning" onclick="stopAutoRefresh()" id="stopAutoRefreshBtn">
-                ⏸️ Stop Auto-Refresh
+            <button class="btn btn-warning" onclick="stopCron()" id="stopCronBtn">
+                🛑 Stop Background Cron
             </button>
             <button class="btn" onclick="refreshDashboard()" id="refreshBtn">
-                🔄 Manual Refresh
+                🔄 Refresh Dashboard
             </button>
             <button class="btn btn-info" onclick="checkStatus()" id="statusBtn">
                 📊 Check Status
@@ -351,8 +351,13 @@
         </div>
 
         <div class="auto-refresh">
-            <h4>🔄 Auto-Refresh Status</h4>
-            <p id="autoRefreshStatus">Auto-refresh is currently inactive. Click "Start Auto-Refresh" to enable real-time updates every 30 seconds.</p>
+            <h4>⏰ Background Cron Job Status</h4>
+            <div class="cron-status">
+                <p><strong>Status:</strong> <span id="cronStatus">Checking...</span></p>
+                <p><strong>Last Ingest:</strong> <span id="lastIngest">Never</span></p>
+                <p><strong>Total Ingest Count:</strong> <span id="ingestCount">0</span></p>
+                <p><strong>Next Run:</strong> <span id="nextRun">Calculating...</span></p>
+            </div>
         </div>
 
         <div class="email-threads">
@@ -413,6 +418,42 @@
             }
         }
 
+        function updateCronStatus() {
+            if (dashboardData && dashboardData.background_job) {
+                const job = dashboardData.background_job;
+                
+                // Update cron status
+                document.getElementById('cronStatus').textContent = job.running ? '🟢 Running' : '🔴 Stopped';
+                document.getElementById('lastIngest').textContent = job.last_ingest ? new Date(job.last_ingest).toLocaleString() : 'Never';
+                document.getElementById('ingestCount').textContent = job.ingest_count || 0;
+                
+                // Calculate next run (5 minutes from last ingest)
+                if (job.last_ingest && job.running) {
+                    const lastIngest = new Date(job.last_ingest);
+                    const nextRun = new Date(lastIngest.getTime() + 5 * 60 * 1000); // 5 minutes
+                    document.getElementById('nextRun').textContent = nextRun.toLocaleString();
+                } else {
+                    document.getElementById('nextRun').textContent = job.running ? '5 minutes from now' : 'Not scheduled';
+                }
+                
+                // Update button states
+                const startBtn = document.getElementById('startCronBtn');
+                const stopBtn = document.getElementById('stopCronBtn');
+                
+                if (job.running) {
+                    startBtn.disabled = true;
+                    startBtn.textContent = '⏰ Cron Running';
+                    startBtn.classList.add('btn-success');
+                    stopBtn.disabled = false;
+                } else {
+                    startBtn.disabled = false;
+                    startBtn.textContent = '⏰ Start Background Cron';
+                    startBtn.classList.remove('btn-success');
+                    stopBtn.disabled = true;
+                }
+            }
+        }
+
         async function runIngest() {
             setLoading('ingestBtn', true);
             try {
@@ -438,30 +479,47 @@
             }
         }
 
-        function startAutoRefresh() {
-            if (autoRefreshInterval) {
-                showMessage('⚠️ Auto-refresh is already running!', false);
-                return;
+        async function startCron() {
+            try {
+                const response = await fetch('/api/cron/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    showMessage(`✅ ${result.message}`, true);
+                    updateCronStatus();
+                } else {
+                    const error = await response.json();
+                    showMessage(`❌ Failed to start cron: ${error.error}`, false);
+                }
+            } catch (error) {
+                showMessage(`❌ Error: ${error.message}`, false);
             }
-            
-            autoRefreshInterval = setInterval(() => {
-                refreshDashboard();
-            }, 30000); // Refresh every 30 seconds
-            
-            showMessage('✅ Auto-refresh started! Dashboard will refresh every 30 seconds.', true);
-            document.getElementById('autoRefreshBtn').textContent = '🔄 Auto-Refresh Active';
-            document.getElementById('autoRefreshBtn').classList.add('btn-success');
-            document.getElementById('autoRefreshStatus').textContent = 'Auto-refresh is active. Dashboard updates every 30 seconds.';
         }
 
-        function stopAutoRefresh() {
-            if (autoRefreshInterval) {
-                clearInterval(autoRefreshInterval);
-                autoRefreshInterval = null;
-                showMessage('🛑 Auto-refresh stopped.', true);
-                document.getElementById('autoRefreshBtn').textContent = '🔄 Start Auto-Refresh';
-                document.getElementById('autoRefreshBtn').classList.remove('btn-success');
-                document.getElementById('autoRefreshStatus').textContent = 'Auto-refresh is currently inactive. Click "Start Auto-Refresh" to enable real-time updates every 30 seconds.';
+        async function stopCron() {
+            try {
+                const response = await fetch('/api/cron/stop', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    showMessage(`✅ ${result.message}`, true);
+                    updateCronStatus();
+                } else {
+                    const error = await response.json();
+                    showMessage(`❌ Failed to stop cron: ${error.error}`, false);
+                }
+            } catch (error) {
+                showMessage(`❌ Error: ${error.message}`, false);
             }
         }
 
@@ -491,6 +549,7 @@
                     updateDashboard(dashboardData);
                     updateConnectionStatus();
                     updateContextInfo();
+                    updateCronStatus();
                 } else {
                     showMessage('❌ Failed to fetch dashboard data', false);
                 }
