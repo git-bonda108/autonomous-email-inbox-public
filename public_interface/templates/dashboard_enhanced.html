@@ -253,42 +253,46 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🤖 LangSmith Powered Agent Inbox Dashboard</h1>
-            <p>Real-time Email Management via LangSmith API - Graph: email_assistant_hitl_memory_gmail</p>
+            <h1>🤖 Enhanced Agent Inbox Dashboard</h1>
+            <p>LangSmith API + Agent Inbox Integration - Complete Context Management</p>
             <div class="connection-status">
                 <div class="status-indicator" id="langsmithStatus">
                     <span class="status-dot"></span>
                     LangSmith: Checking...
                 </div>
+                <div class="status-indicator" id="agentInboxStatus">
+                    <span class="status-dot"></span>
+                    Agent Inbox: Checking...
+                </div>
             </div>
         </div>
 
         <div class="context-info">
-            <h3>🔗 LangSmith Integration</h3>
+            <h3>🔗 Integration Context</h3>
             <div class="context-details">
                 <div class="context-item">
                     <div class="context-label">LangSmith API Key</div>
                     <div class="context-value" id="langsmithKey">Checking...</div>
                 </div>
                 <div class="context-item">
-                    <div class="context-label">Graph ID</div>
-                    <div class="context-value" id="graphId">email_assistant_hitl_memory_gmail</div>
+                    <div class="context-label">Agent Inbox URL</div>
+                    <div class="context-value" id="agentInboxUrl">Checking...</div>
                 </div>
                 <div class="context-item">
-                    <div class="context-label">Last Data Update</div>
-                    <div class="context-value" id="lastDataUpdate">Never</div>
+                    <div class="context-label">Last Cache Update</div>
+                    <div class="context-value" id="lastCacheUpdate">Never</div>
                 </div>
                 <div class="context-item">
-                    <div class="context-label">Connection Status</div>
-                    <div class="context-value" id="connectionStatus">Checking...</div>
+                    <div class="context-label">Background Updates</div>
+                    <div class="context-value" id="backgroundUpdates">Inactive</div>
                 </div>
             </div>
         </div>
 
         <div class="action-buttons">
-            <h3>📧 LangSmith Data Controls</h3>
+            <h3>📧 Email Processing Controls</h3>
             <button class="btn btn-success" onclick="runIngest()" id="ingestBtn">
-                🚀 Refresh Data
+                🚀 Run Email Ingest
             </button>
             <button class="btn btn-info" onclick="startAutoRefresh()" id="autoRefreshBtn">
                 🔄 Start Auto-Refresh
@@ -394,22 +398,28 @@
         function updateConnectionStatus() {
             // Update LangSmith status
             const langsmithStatus = document.getElementById('langsmithStatus');
-            if (dashboardData && dashboardData.source) {
-                langsmithStatus.className = 'status-indicator status-online';
-                langsmithStatus.innerHTML = `<span class="status-dot"></span>LangSmith: Connected`;
-            } else {
-                langsmithStatus.className = 'status-indicator status-offline';
-                langsmithStatus.innerHTML = `<span class="status-dot"></span>LangSmith: Disconnected`;
+            if (dashboardData && dashboardData.connection_status && dashboardData.connection_status.langsmith) {
+                const status = dashboardData.connection_status.langsmith.status;
+                langsmithStatus.className = `status-indicator ${status === 'connected' ? 'status-online' : 'status-offline'}`;
+                langsmithStatus.innerHTML = `<span class="status-dot"></span>LangSmith: ${status === 'connected' ? 'Connected' : 'Disconnected'}`;
+            }
+
+            // Update Agent Inbox status
+            const agentInboxStatus = document.getElementById('agentInboxStatus');
+            if (dashboardData && dashboardData.connection_status && dashboardData.connection_status.agent_inbox) {
+                const status = dashboardData.connection_status.agent_inbox.status;
+                agentInboxStatus.className = `status-indicator ${status === 'connected' ? 'status-online' : 'status-offline'}`;
+                agentInboxStatus.innerHTML = `<span class="status-dot"></span>Agent Inbox: ${status === 'connected' ? 'Connected' : 'Disconnected'}`;
             }
         }
 
         function updateContextInfo() {
             if (dashboardData) {
                 // Update context information
-                document.getElementById('langsmithKey').textContent = dashboardData.source ? '✅ Active' : '❌ Inactive';
-                document.getElementById('graphId').textContent = 'email_assistant_hitl_memory_gmail';
-                document.getElementById('lastDataUpdate').textContent = dashboardData.last_updated ? new Date(dashboardData.last_updated).toLocaleString() : 'Never';
-                document.getElementById('connectionStatus').textContent = dashboardData.source ? '✅ Connected' : '❌ Disconnected';
+                document.getElementById('langsmithKey').textContent = dashboardData.connection_status?.langsmith?.status === 'connected' ? '✅ Active' : '❌ Inactive';
+                document.getElementById('agentInboxUrl').textContent = dashboardData.connection_status?.agent_inbox?.endpoint || 'Unknown';
+                document.getElementById('lastCacheUpdate').textContent = dashboardData.last_updated ? new Date(dashboardData.last_updated).toLocaleString() : 'Never';
+                document.getElementById('backgroundUpdates').textContent = autoRefreshInterval ? '✅ Active' : '❌ Inactive';
             }
         }
 
@@ -425,11 +435,11 @@
                 
                 if (response.ok) {
                     const result = await response.json();
-                    showMessage(`✅ Data refresh completed! Found ${result.total_runs || 0} runs, ${result.processed || 0} emails.`, true);
+                    showMessage(`✅ Email ingest completed! Processed ${result.processed || 0} emails.`, true);
                     refreshDashboard();
                 } else {
                     const error = await response.json();
-                    showMessage(`❌ Refresh failed: ${error.error}`, false);
+                    showMessage(`❌ Ingest failed: ${error.error}`, false);
                 }
             } catch (error) {
                 showMessage(`❌ Error: ${error.message}`, false);
@@ -471,7 +481,7 @@
                 const response = await fetch('/api/status');
                 if (response.ok) {
                     const status = await response.json();
-                    showMessage(`📊 Status: ${status.status}, LangSmith: ${status.langsmith_connected ? 'Connected' : 'Disconnected'}, Graph: ${status.graph_id}`, true);
+                    showMessage(`📊 Status: ${status.status}, LangSmith: ${status.langsmith_connected ? 'Connected' : 'Disconnected'}, Agent Inbox: ${status.agent_inbox_connected ? 'Connected' : 'Disconnected'}`, true);
                 } else {
                     showMessage('❌ Failed to check status', false);
                 }

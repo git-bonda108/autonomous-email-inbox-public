@@ -15,10 +15,5 @@
       "src": "/(.*)",
       "dest": "app_agentinbox.py"
     }
-  ],
-  "functions": {
-    "app_agentinbox.py": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }
