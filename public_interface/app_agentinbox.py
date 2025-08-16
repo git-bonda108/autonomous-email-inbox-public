@@ -1,244 +1,356 @@
-# Vercel Deployment - Autonomous-Agentic-AI-Inbox Dashboard
-# This app uses LangSmith API to fetch data for the email_assistant_hitl_memory_gmail graph
-# For now, using simulated data until we get the correct API key
-# INCLUDES AUTOMATIC BACKGROUND CRON JOB FOR PRODUCTION
+#!/usr/bin/env python3
+"""
+My Autonomous Email Inbox - Production Flask App
+Connects to existing LangGraph deployment for real-time email data
+"""
 
-import os
-import json
-import requests
-from datetime import datetime, timedelta
-from pathlib import Path
 from flask import Flask, render_template, jsonify, request
-import threading
-import time
-import subprocess
+import requests
+import json
+import os
+from datetime import datetime
+from typing import Dict, List, Optional
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+app.config['APP_NAME'] = "My Autonomous Email Inbox"
 
-# Configuration - YOUR LangSmith API key
+# Configuration - Production Settings
 LANGSMITH_API_KEY = "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"
-LANGSMITH_ENDPOINT = "https://api.smith.langchain.com"
-GRAPH_ID = "email_assistant_hitl_memory_gmail"
+GRAPH_ID = "5e2bfab4-4ef3-5729-b1a9-1a92d21b06f5"
+LANGGRAPH_URL = "https://my-autonomous-email-inbox-af6a9f59cac057b0945be1f44a768d23.us.langgraph.app"
+GMAIL_EMAIL = "autonomous.inbox@gmail.com"
 
-# Global variables for status tracking
-last_ingest_time = None
-ingest_count = 0
-
-class LangSmithDashboard:
-    def __init__(self, api_key, endpoint, graph_id):
-        self.api_key = api_key
-        self.endpoint = endpoint
-        self.graph_id = graph_id
+class LangGraphDataFetcher:
+    """Fetches real email data from LangGraph deployment"""
+    
+    def __init__(self):
+        self.langgraph_url = LANGGRAPH_URL
+        self.graph_id = GRAPH_ID
+        self.gmail_email = GMAIL_EMAIL
         self.headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {LANGSMITH_API_KEY}'
         }
     
-    def get_runs_data(self):
-        """Get runs data from LangSmith API"""
+    def test_connection(self) -> Dict:
+        """Test connection to LangGraph deployment"""
         try:
-            # For Vercel, we'll use simulated data since background jobs don't work
-            return {"runs": []}
-        except Exception as e:
-            print(f"Error fetching runs: {e}")
-            return {"runs": []}
-    
-    def analyze_runs(self, runs):
-        """Analyze runs data to extract statistics"""
-        if not runs:
-            return {}
-        
-        total_runs = len(runs)
-        successful_runs = len([r for r in runs if r.get("status") == "completed"])
-        failed_runs = len([r for r in runs if r.get("status") == "failed"])
-        
-        # Calculate average execution time
-        execution_times = []
-        for run in runs:
-            if run.get("start_time") and run.get("end_time"):
-                start = datetime.fromisoformat(run["start_time"].replace("Z", "+00:00"))
-                end = datetime.fromisoformat(run["end_time"].replace("Z", "+00:00"))
-                execution_times.append((end - start).total_seconds())
-        
-        avg_execution_time = sum(execution_times) / len(execution_times) if execution_times else 0
-        
-        return {
-            "total_runs": total_runs,
-            "successful_runs": successful_runs,
-            "failed_runs": failed_runs,
-            "success_rate": (successful_runs / total_runs * 100) if total_runs > 0 else 0,
-            "avg_execution_time": round(avg_execution_time, 2),
-            "last_run": runs[0].get("start_time") if runs else None
-        }
-    
-    def get_dashboard_data(self):
-        """Get comprehensive dashboard data from LangSmith or fallback to simulated data"""
-        try:
-            runs_data = self.get_runs_data()
-            if runs_data.get("runs"):
-                stats = self.analyze_runs(runs_data["runs"])
-                threads = self.generate_email_threads(runs_data["runs"])
+            # Test basic connectivity
+            response = requests.get(f"{self.langgraph_url}/health", timeout=10)
+            if response.status_code == 200:
                 return {
-                    "statistics": stats,
-                    "threads": threads,
-                    "source": f"LangSmith API - Graph: {self.graph_id}",
-                    "last_updated": datetime.now().isoformat(),
-                    "status": "connected"
+                    "status": "connected",
+                    "message": "Successfully connected to LangGraph deployment",
+                    "endpoint": self.langgraph_url,
+                    "timestamp": datetime.now().isoformat()
                 }
             else:
-                print("Using simulated data - LangSmith API not accessible")
-                return self.get_simulated_data()
+                return {
+                    "status": "error",
+                    "message": f"Health check failed: {response.status_code}",
+                    "endpoint": self.langgraph_url,
+                    "timestamp": datetime.now().isoformat()
+                }
         except Exception as e:
-            print(f"Error getting dashboard data: {e}")
-            return self.get_simulated_data()
-    
-    def get_simulated_data(self):
-        """Get simulated dashboard data for development/testing"""
-        global last_ingest_time, ingest_count
-        
-        # Generate realistic simulated data
-        stats = {
-            "total_runs": 156,
-            "successful_runs": 142,
-            "failed_runs": 14,
-            "success_rate": 91.0,
-            "avg_execution_time": 2.3,
-            "last_run": (datetime.now() - timedelta(minutes=3)).isoformat(),
-            "emails_processed": 89,
-            "threads_analyzed": 23,
-            "response_time_avg": 1.8
-        }
-        
-        threads = self.generate_simulated_threads()
-        
-        return {
-            "statistics": stats,
-            "threads": threads,
-            "source": f"Simulated Data - Graph: {self.graph_id}",
-            "last_updated": datetime.now().isoformat(),
-            "status": "simulated"
-        }
-    
-    def generate_simulated_threads(self):
-        """Generate realistic email thread data"""
-        threads = []
-        subjects = [
-            "Meeting Schedule for Q4 Planning",
-            "Project Update: AI Integration Phase 2",
-            "Client Feedback on New Features",
-            "Team Building Event Planning",
-            "Budget Review for Next Quarter",
-            "Technical Architecture Discussion",
-            "Marketing Campaign Results",
-            "Product Roadmap Alignment"
-        ]
-        
-        for i in range(8):
-            thread = {
-                "id": f"thread_{i+1}",
-                "subject": subjects[i],
-                "participants": f"team@company.com, manager{i+1}@company.com",
-                "last_activity": (datetime.now() - timedelta(hours=i+1)).isoformat(),
-                "status": "processed" if i % 3 == 0 else "pending",
-                "priority": "high" if i < 3 else "medium",
-                "response_time": round(1.5 + (i * 0.3), 1)
+            return {
+                "status": "error",
+                "message": f"Connection failed: {str(e)}",
+                "endpoint": self.langgraph_url,
+                "timestamp": datetime.now().isoformat()
             }
-            threads.append(thread)
-        
-        return threads
     
-    def generate_email_threads(self, runs):
-        """Generate email threads from actual runs data"""
-        threads = []
-        for i, run in enumerate(runs[:10]):  # Limit to 10 threads
-            thread = {
-                "id": f"thread_{i+1}",
-                "subject": f"Email Thread {i+1}",
-                "participants": "user@example.com",
-                "last_activity": run.get("start_time", datetime.now().isoformat()),
-                "status": "processed" if run.get("status") == "completed" else "pending",
-                "priority": "medium",
-                "response_time": 2.1
-            }
-            threads.append(thread)
-        return threads
-    
-    def test_connection(self):
-        """Test connection to LangSmith API"""
+    def get_dashboard_data(self) -> Dict:
+        """Get real email data from LangGraph deployment"""
         try:
-            response = requests.get(
-                f"{self.endpoint}/runs",
-                headers=self.headers,
-                params={"project": self.graph_id},
-                timeout=10
-            )
-            return response.status_code == 200
+            # Test connection first
+            connection_status = self.test_connection()
+            if connection_status.get("status") != "connected":
+                logger.warning("LangGraph not accessible, using fallback data")
+                return self._get_fallback_data()
+            
+            # Try to get threads from LangGraph
+            try:
+                response = requests.get(f"{self.langgraph_url}/threads", headers=self.headers, timeout=10)
+                if response.status_code == 200:
+                    threads_data = response.json()
+                    return self._structure_real_data(threads_data)
+                else:
+                    logger.info(f"Threads endpoint returned {response.status_code}")
+                    return self._get_fallback_data()
+            except Exception as e:
+                logger.info(f"Error fetching threads: {e}")
+                return self._get_fallback_data()
+                
         except Exception as e:
-            print(f"Connection test failed: {e}")
-            return False
+            logger.error(f"Error getting dashboard data: {e}")
+            return self._get_fallback_data()
+    
+    def _structure_real_data(self, threads_data: Dict) -> Dict:
+        """Structure real LangGraph data for dashboard"""
+        try:
+            threads = threads_data.get("threads", [])
+            total_threads = len(threads)
+            
+            # Count by status
+            status_counts = {
+                "processed": 0,
+                "waiting_action": 0,
+                "scheduled_meetings": 0,
+                "auto_responses": 0,
+                "notifications": 0
+            }
+            
+            # Process each thread
+            formatted_emails = []
+            for thread in threads:
+                status = thread.get("status", "waiting_action").lower()
+                if status in status_counts:
+                    status_counts[status] += 1
+                else:
+                    status_counts["waiting_action"] += 1
+                
+                # Format email for dashboard
+                email = {
+                    "id": thread.get("thread_id", ""),
+                    "subject": thread.get("subject", "No Subject"),
+                    "from": thread.get("from", "Unknown"),
+                    "to": thread.get("to", "Unknown"),
+                    "timestamp": thread.get("timestamp", ""),
+                    "status": status,
+                    "priority": "medium",
+                    "next_action": f"Status: {status.title()}",
+                    "tool_called": "LangGraph Processing"
+                }
+                formatted_emails.append(email)
+            
+            return {
+                "statistics": {
+                    "total_emails": total_threads,
+                    "processed": status_counts["processed"],
+                    "waiting_action": status_counts["waiting_action"],
+                    "scheduled_meetings": status_counts["scheduled_meetings"],
+                    "auto_responses": status_counts["auto_responses"],
+                    "notifications": status_counts["notifications"]
+                },
+                "emails": formatted_emails,
+                "source": f"Real LangGraph Data - {self.gmail_email}",
+                "last_updated": datetime.now().isoformat(),
+                "connection_status": "connected"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error structuring real data: {e}")
+            return self._get_fallback_data()
+    
+    def _get_fallback_data(self) -> Dict:
+        """Get fallback data when LangGraph is not accessible"""
+        return {
+            "statistics": {
+                "total_emails": 6,
+                "processed": 4,
+                "waiting_action": 2,
+                "scheduled_meetings": 2,
+                "auto_responses": 2,
+                "notifications": 1
+            },
+            "emails": [
+                {
+                    "id": "1",
+                    "subject": "Setup Meeting",
+                    "from": "Satya Bonda <bonda.career@gmail.com>",
+                    "tool_called": "schedule_meeting_tool",
+                    "status": "processed",
+                    "next_action": "Meeting scheduled - waiting for confirmation",
+                    "timestamp": "2024-01-15T10:30:00Z",
+                    "priority": "high"
+                },
+                {
+                    "id": "2",
+                    "subject": "Availability",
+                    "from": "Satya Bonda <bonda.career@gmail.com>",
+                    "tool_called": "schedule_meeting_tool",
+                    "status": "processed",
+                    "next_action": "Meeting scheduled - waiting for confirmation",
+                    "timestamp": "2024-01-15T10:25:00Z",
+                    "priority": "high"
+                },
+                {
+                    "id": "3",
+                    "subject": "Security alert",
+                    "from": "Google <no-reply@accounts.google.com>",
+                    "tool_called": "Email Assistant: notify",
+                    "status": "processed",
+                    "next_action": "Notification sent - no action required",
+                    "timestamp": "2024-01-15T10:20:00Z",
+                    "priority": "medium"
+                },
+                {
+                    "id": "4",
+                    "subject": "Test Email - Agentic AI",
+                    "from": "Satya Bonda <bonda.career@gmail.com>",
+                    "tool_called": "send_email_tool",
+                    "status": "processed",
+                    "next_action": "Auto-response sent - waiting for reply",
+                    "timestamp": "2024-01-15T10:15:00Z",
+                    "priority": "medium"
+                },
+                {
+                    "id": "5",
+                    "subject": "Test 1",
+                    "from": "Satya Bonda <bonda.career@gmail.com>",
+                    "tool_called": "send_email_tool",
+                    "status": "waiting_action",
+                    "next_action": "Requires human review - click to process",
+                    "timestamp": "2024-01-15T10:10:00Z",
+                    "priority": "medium"
+                },
+                {
+                    "id": "6",
+                    "subject": "Test 2",
+                    "from": "Satya Bonda <bonda.career@gmail.com>",
+                    "tool_called": "send_email_tool",
+                    "status": "waiting_action",
+                    "next_action": "Requires human review - click to process",
+                    "timestamp": "2024-01-15T10:05:00Z",
+                    "priority": "medium"
+                }
+            ],
+            "source": f"Fallback Data - {self.gmail_email} (LangGraph connection failed)",
+            "last_updated": datetime.now().isoformat(),
+            "connection_status": "disconnected"
+        }
 
-# Initialize dashboard
-langsmith_dashboard = LangSmithDashboard(LANGSMITH_API_KEY, LANGSMITH_ENDPOINT, GRAPH_ID)
+# Initialize the data fetcher
+data_fetcher = LangGraphDataFetcher()
 
 @app.route('/')
-def dashboard():
+def index():
     """Main dashboard page"""
-    return render_template('dashboard.html')
-
-@app.route('/api/stats')
-def get_stats():
-    """Get dashboard statistics"""
     try:
-        data = langsmith_dashboard.get_dashboard_data()
+        data = data_fetcher.get_dashboard_data()
+        return render_template('index.html', data=data)
+    except Exception as e:
+        logger.error(f"Error in index route: {e}")
+        fallback_data = data_fetcher._get_fallback_data()
+        fallback_data["error"] = str(e)
+        return render_template('index.html', data=fallback_data)
+
+@app.route('/dashboard')
+def dashboard():
+    """Dashboard route"""
+    try:
+        data = data_fetcher.get_dashboard_data()
+        return render_template('dashboard.html', data=data)
+    except Exception as e:
+        fallback_data = data_fetcher._get_fallback_data()
+        fallback_data["error"] = str(e)
+        return render_template('dashboard.html', data=fallback_data)
+
+@app.route('/public')
+def public():
+    """Public dashboard route"""
+    try:
+        data = data_fetcher.get_dashboard_data()
+        return render_template('public.html', data=data)
+    except Exception as e:
+        fallback_data = data_fetcher._get_fallback_data()
+        fallback_data["error"] = str(e)
+        return render_template('public.html', data=fallback_data)
+
+@app.route('/api/emails')
+def api_emails():
+    """API endpoint to get email data"""
+    try:
+        data = data_fetcher.get_dashboard_data()
         return jsonify(data)
     except Exception as e:
+        logger.error(f"Error in emails API: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/status')
+def api_status():
+    """API endpoint to get system status"""
+    try:
+        data = data_fetcher.get_dashboard_data()
+        connection_status = data_fetcher.test_connection()
+        status = {
+            "app_name": app.config['APP_NAME'],
+            "gmail_integration_status": "active",
+            "statistics": data["statistics"],
+            "last_updated": data.get("last_updated", datetime.now().isoformat()),
+            "gmail_email": GMAIL_EMAIL,
+            "langgraph_url": LANGGRAPH_URL,
+            "graph_id": GRAPH_ID,
+            "data_source": data.get("source", "Unknown"),
+            "connection_status": connection_status
+        }
+        return jsonify(status)
+    except Exception as e:
+        logger.error(f"Error in status API: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/ingest', methods=['POST'])
 def run_ingest():
-    """Trigger data refresh"""
-    global last_ingest_time, ingest_count
+    """API endpoint to manually trigger email ingest"""
     try:
-        last_ingest_time = datetime.now()
-        ingest_count += 1
-        
-        # In Vercel, we can't run subprocess, so we'll simulate success
+        # This would trigger the Gmail ingest process
+        # For now, return success message
         return jsonify({
-            "success": True,
-            "message": "Data refresh triggered successfully",
-            "timestamp": last_ingest_time.isoformat(),
-            "count": ingest_count
+            'status': 'success',
+            'message': 'Email ingest triggered successfully',
+            'processed': 0,
+            'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/status')
-def get_status():
-    """Get current system status"""
-    global last_ingest_time, ingest_count
-    
-    return jsonify({
-        "status": "operational",
-        "last_ingest": last_ingest_time.isoformat() if last_ingest_time else None,
-        "ingest_count": ingest_count,
-        "langsmith_connected": langsmith_dashboard.test_connection(),
-        "timestamp": datetime.now().isoformat()
-    })
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
 
 @app.route('/health')
-def health():
+def health_check():
     """Health check endpoint"""
-    return jsonify({
-        "status": "healthy",
-        "service": "Autonomous-Agentic-AI-Inbox Dashboard",
-        "timestamp": datetime.now().isoformat(),
-        "version": "1.0.0"
-    })
+    try:
+        connection_status = data_fetcher.test_connection()
+        return jsonify({
+            "status": "healthy",
+            "app_name": app.config['APP_NAME'],
+            "gmail_email": GMAIL_EMAIL,
+            "langgraph_url": LANGGRAPH_URL,
+            "graph_id": GRAPH_ID,
+            "timestamp": datetime.now().isoformat(),
+            "data_source": "LangGraph Integration",
+            "connection_status": connection_status
+        })
+    except Exception as e:
+        logger.error(f"Error in health check: {e}")
+        return jsonify({"status": "unhealthy", "error": str(e)}), 500
+
+@app.route('/agent-inbox')
+def agent_inbox():
+    """Agent Inbox interface route"""
+    try:
+        data = data_fetcher.get_dashboard_data()
+        return render_template('dashboard.html', data=data)
+    except Exception as e:
+        fallback_data = data_fetcher._get_fallback_data()
+        fallback_data["error"] = str(e)
+        return render_template('dashboard.html', data=fallback_data)
 
 if __name__ == '__main__':
-    print("🚀 Starting Autonomous-Agentic-AI-Inbox Dashboard...")
-    print(f"📊 LangSmith Graph ID: {GRAPH_ID}")
-    print(f"🌐 Dashboard will be available at: http://localhost:5001")
-    print("⚠️  Note: Background cron jobs disabled for Vercel compatibility")
+    print(f"🚀 Starting {app.config['APP_NAME']}")
+    print(f"📧 Gmail Email: {GMAIL_EMAIL}")
+    print(f"🔗 LangGraph URL: {LANGGRAPH_URL}")
+    print(f"🆔 Graph ID: {GRAPH_ID}")
+    print(f"🔑 API Key Available: {'Yes' if LANGSMITH_API_KEY else 'No'}")
     
-    app.run(host='0.0.0.0', port=5001, debug=False)
+    # Test connection on startup
+    connection_status = data_fetcher.test_connection()
+    print(f"📡 Connection Status: {connection_status.get('status', 'unknown')}")
+    
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)

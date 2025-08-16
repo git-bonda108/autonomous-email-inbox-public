@@ -223,3 +223,4 @@ If you encounter issues:
 4. Review the cron job configuration
 
 The integration is designed to be robust with fallbacks, so even if one component fails, the dashboard will continue to function with cached or fallback data.
+

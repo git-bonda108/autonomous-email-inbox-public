@@ -114,3 +114,4 @@ If you're still having issues:
 4. **Review environment variables** in Vercel dashboard
 
 The integration is designed to be robust with fallbacks, so even if some components fail, the dashboard will continue to function.
+

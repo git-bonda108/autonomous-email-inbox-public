@@ -250,3 +250,4 @@ After successful deployment:
 ---
 
 **🎯 Summary: This integration connects your existing Agent Inbox system to your Vercel dashboard, eliminating the need for new email ingestion while providing real-time data display.**
+

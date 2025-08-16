@@ -69,3 +69,4 @@ echo "3. Test the ingest script manually first:"
 echo "   cd $SCRIPT_DIR"
 echo "   uv run python $INGEST_SCRIPT --email $EMAIL_ADDRESS --early"
 echo "4. The cron job will now run automatically every 5 minutes"
+

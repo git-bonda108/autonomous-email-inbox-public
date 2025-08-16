@@ -311,3 +311,4 @@ if __name__ == "__main__":
     
     # Run the script
     exit(asyncio.run(fetch_and_process_emails(args)))
+
