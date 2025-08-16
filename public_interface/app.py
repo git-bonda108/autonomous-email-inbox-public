@@ -7,7 +7,6 @@ Simple, working dashboard that displays email data
 from flask import Flask, jsonify, request
 import json
 import os
-import requests
 from datetime import datetime
 from typing import Dict, List
 
