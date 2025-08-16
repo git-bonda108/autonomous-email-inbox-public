@@ -67,3 +67,4 @@ token.json
 langgraph.log
 *.log
 DEPLOYMENT_SECRETS.txt
+.vercel
