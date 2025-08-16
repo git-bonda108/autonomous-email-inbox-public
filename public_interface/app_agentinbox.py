@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
 My Autonomous Email Inbox - Production Flask App
-Connects to existing LangGraph deployment for real-time email data
+Uses existing Agent Inbox that's already working with Gmail integration
 """
 
 from flask import Flask, render_template, jsonify, request
 import requests
 import json
 import os
+import subprocess
 from datetime import datetime
 from typing import Dict, List, Optional
 import logging
@@ -19,82 +20,131 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config['APP_NAME'] = "My Autonomous Email Inbox"
 
-# Configuration - Production Settings
+# Configuration - Use existing Agent Inbox
+AGENT_INBOX_URL = "https://dev.agentinbox.ai"
+AGENT_INBOX_ID = "email_assistant_hitl_memory_gmail"
 LANGSMITH_API_KEY = "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"
-GRAPH_ID = "5e2bfab4-4ef3-5729-b1a9-1a92d21b06f5"
-LANGGRAPH_URL = "https://my-autonomous-email-inbox-af6a9f59cac057b0945be1f44a768d23.us.langgraph.app"
 GMAIL_EMAIL = "autonomous.inbox@gmail.com"
 
-class LangGraphDataFetcher:
-    """Fetches real email data from LangGraph deployment"""
+class AgentInboxDataFetcher:
+    """Fetches real email data from existing Agent Inbox"""
     
     def __init__(self):
-        self.langgraph_url = LANGGRAPH_URL
-        self.graph_id = GRAPH_ID
+        self.agent_inbox_url = AGENT_INBOX_URL
+        self.agent_inbox_id = AGENT_INBOX_ID
+        self.api_key = LANGSMITH_API_KEY
         self.gmail_email = GMAIL_EMAIL
         self.headers = {
             'Content-Type': 'application/json',
-            'Authorization': f'Bearer {LANGSMITH_API_KEY}'
+            'Authorization': f'Bearer {self.api_key}'
         }
     
     def test_connection(self) -> Dict:
-        """Test connection to LangGraph deployment"""
+        """Test connection to Agent Inbox"""
         try:
-            # Test basic connectivity
-            response = requests.get(f"{self.langgraph_url}/health", timeout=10)
+            # Test connection to Agent Inbox
+            response = requests.get(f"{self.agent_inbox_url}/api/health", headers=self.headers, timeout=10)
             if response.status_code == 200:
                 return {
                     "status": "connected",
-                    "message": "Successfully connected to LangGraph deployment",
-                    "endpoint": self.langgraph_url,
+                    "message": "Successfully connected to Agent Inbox",
+                    "endpoint": self.agent_inbox_url,
                     "timestamp": datetime.now().isoformat()
                 }
             else:
                 return {
                     "status": "error",
-                    "message": f"Health check failed: {response.status_code}",
-                    "endpoint": self.langgraph_url,
+                    "message": f"Agent Inbox returned {response.status_code}",
+                    "endpoint": self.agent_inbox_url,
                     "timestamp": datetime.now().isoformat()
                 }
         except Exception as e:
             return {
                 "status": "error",
                 "message": f"Connection failed: {str(e)}",
-                "endpoint": self.langgraph_url,
+                "endpoint": self.agent_inbox_url,
+                "timestamp": datetime.now().isoformat()
+            }
+    
+    def run_ingest_script(self) -> Dict:
+        """Run the Gmail ingest script to fetch new emails"""
+        try:
+            logger.info("🚀 Starting Gmail ingest process...")
+            
+            # Path to the ingest script
+            script_path = "../src/email_assistant/tools/gmail/run_ingest.py"
+            
+            # Run the ingest script
+            result = subprocess.run([
+                "python", script_path,
+                "--email", self.gmail_email,
+                "--include-read"
+            ], capture_output=True, text=True, cwd=".")
+            
+            if result.returncode == 0:
+                logger.info("✅ Gmail ingest completed successfully")
+                return {
+                    "status": "success",
+                    "message": "Gmail ingest completed successfully",
+                    "output": result.stdout,
+                    "timestamp": datetime.now().isoformat()
+                }
+            else:
+                logger.error(f"❌ Gmail ingest failed: {result.stderr}")
+                return {
+                    "status": "error",
+                    "message": f"Gmail ingest failed: {result.stderr}",
+                    "output": result.stdout,
+                    "error": result.stderr,
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+        except Exception as e:
+            logger.error(f"❌ Error running ingest script: {e}")
+            return {
+                "status": "error",
+                "message": f"Error running ingest script: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
     
     def get_dashboard_data(self) -> Dict:
-        """Get real email data from LangGraph deployment"""
+        """Get email data from Agent Inbox"""
         try:
             # Test connection first
             connection_status = self.test_connection()
             if connection_status.get("status") != "connected":
-                logger.warning("LangGraph not accessible, using fallback data")
+                logger.warning("Agent Inbox not accessible, using fallback data")
                 return self._get_fallback_data()
             
-            # Try to get threads from LangGraph
+            # Try to get data from Agent Inbox
             try:
-                response = requests.get(f"{self.langgraph_url}/threads", headers=self.headers, timeout=10)
+                response = requests.get(
+                    f"{self.agent_inbox_url}/api/emails?agent_inbox={self.agent_inbox_id}",
+                    headers=self.headers,
+                    timeout=10
+                )
+                
                 if response.status_code == 200:
-                    threads_data = response.json()
-                    return self._structure_real_data(threads_data)
+                    agent_inbox_data = response.json()
+                    return self._structure_agent_inbox_data(agent_inbox_data)
                 else:
-                    logger.info(f"Threads endpoint returned {response.status_code}")
+                    logger.info(f"Agent Inbox API returned {response.status_code}")
                     return self._get_fallback_data()
+                    
             except Exception as e:
-                logger.info(f"Error fetching threads: {e}")
+                logger.info(f"Error fetching from Agent Inbox: {e}")
                 return self._get_fallback_data()
                 
         except Exception as e:
             logger.error(f"Error getting dashboard data: {e}")
             return self._get_fallback_data()
     
-    def _structure_real_data(self, threads_data: Dict) -> Dict:
-        """Structure real LangGraph data for dashboard"""
+    def _structure_agent_inbox_data(self, agent_inbox_data: Dict) -> Dict:
+        """Structure Agent Inbox data for dashboard"""
         try:
-            threads = threads_data.get("threads", [])
-            total_threads = len(threads)
+            # Extract email data from Agent Inbox response
+            emails = agent_inbox_data.get("emails", [])
+            total_emails = len(emails)
             
             # Count by status
             status_counts = {
@@ -105,32 +155,32 @@ class LangGraphDataFetcher:
                 "notifications": 0
             }
             
-            # Process each thread
+            # Process each email
             formatted_emails = []
-            for thread in threads:
-                status = thread.get("status", "waiting_action").lower()
+            for email in emails:
+                status = email.get("status", "waiting_action").lower()
                 if status in status_counts:
                     status_counts[status] += 1
                 else:
                     status_counts["waiting_action"] += 1
                 
                 # Format email for dashboard
-                email = {
-                    "id": thread.get("thread_id", ""),
-                    "subject": thread.get("subject", "No Subject"),
-                    "from": thread.get("from", "Unknown"),
-                    "to": thread.get("to", "Unknown"),
-                    "timestamp": thread.get("timestamp", ""),
+                formatted_email = {
+                    "id": email.get("id", ""),
+                    "subject": email.get("subject", "No Subject"),
+                    "from": email.get("from", "Unknown"),
+                    "to": email.get("to", "Unknown"),
+                    "timestamp": email.get("timestamp", ""),
                     "status": status,
-                    "priority": "medium",
-                    "next_action": f"Status: {status.title()}",
-                    "tool_called": "LangGraph Processing"
+                    "priority": email.get("priority", "medium"),
+                    "next_action": email.get("next_action", "No action required"),
+                    "tool_called": email.get("tool_called", "None")
                 }
-                formatted_emails.append(email)
+                formatted_emails.append(formatted_email)
             
             return {
                 "statistics": {
-                    "total_emails": total_threads,
+                    "total_emails": total_emails,
                     "processed": status_counts["processed"],
                     "waiting_action": status_counts["waiting_action"],
                     "scheduled_meetings": status_counts["scheduled_meetings"],
@@ -138,17 +188,17 @@ class LangGraphDataFetcher:
                     "notifications": status_counts["notifications"]
                 },
                 "emails": formatted_emails,
-                "source": f"Real LangGraph Data - {self.gmail_email}",
+                "source": f"Real Agent Inbox Data - {self.gmail_email}",
                 "last_updated": datetime.now().isoformat(),
                 "connection_status": "connected"
             }
             
         except Exception as e:
-            logger.error(f"Error structuring real data: {e}")
+            logger.error(f"Error structuring Agent Inbox data: {e}")
             return self._get_fallback_data()
     
     def _get_fallback_data(self) -> Dict:
-        """Get fallback data when LangGraph is not accessible"""
+        """Get fallback data when Agent Inbox is not accessible"""
         return {
             "statistics": {
                 "total_emails": 6,
@@ -220,13 +270,13 @@ class LangGraphDataFetcher:
                     "priority": "medium"
                 }
             ],
-            "source": f"Fallback Data - {self.gmail_email} (LangGraph connection failed)",
+            "source": f"Fallback Data - {self.gmail_email} (Agent Inbox connection failed)",
             "last_updated": datetime.now().isoformat(),
             "connection_status": "disconnected"
         }
 
 # Initialize the data fetcher
-data_fetcher = LangGraphDataFetcher()
+data_fetcher = AgentInboxDataFetcher()
 
 @app.route('/')
 def index():
@@ -280,12 +330,12 @@ def api_status():
         connection_status = data_fetcher.test_connection()
         status = {
             "app_name": app.config['APP_NAME'],
-            "gmail_integration_status": "active",
+            "agent_inbox_status": "active",
             "statistics": data["statistics"],
             "last_updated": data.get("last_updated", datetime.now().isoformat()),
             "gmail_email": GMAIL_EMAIL,
-            "langgraph_url": LANGGRAPH_URL,
-            "graph_id": GRAPH_ID,
+            "agent_inbox_url": AGENT_INBOX_URL,
+            "agent_inbox_id": AGENT_INBOX_ID,
             "data_source": data.get("source", "Unknown"),
             "connection_status": connection_status
         }
@@ -298,14 +348,23 @@ def api_status():
 def run_ingest():
     """API endpoint to manually trigger email ingest"""
     try:
-        # This would trigger the Gmail ingest process
-        # For now, return success message
-        return jsonify({
-            'status': 'success',
-            'message': 'Email ingest triggered successfully',
-            'processed': 0,
-            'timestamp': datetime.now().isoformat()
-        })
+        # Run the Gmail ingest script
+        result = data_fetcher.run_ingest_script()
+        
+        if result.get('status') == 'success':
+            return jsonify({
+                'status': 'success',
+                'message': 'Email ingest completed successfully',
+                'details': result,
+                'timestamp': datetime.now().isoformat()
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'error': result.get('message', 'Unknown error during ingest'),
+                'details': result
+            }), 500
+            
     except Exception as e:
         return jsonify({
             'status': 'error',
@@ -321,10 +380,10 @@ def health_check():
             "status": "healthy",
             "app_name": app.config['APP_NAME'],
             "gmail_email": GMAIL_EMAIL,
-            "langgraph_url": LANGGRAPH_URL,
-            "graph_id": GRAPH_ID,
+            "agent_inbox_url": AGENT_INBOX_URL,
+            "agent_inbox_id": AGENT_INBOX_ID,
             "timestamp": datetime.now().isoformat(),
-            "data_source": "LangGraph Integration",
+            "data_source": "Agent Inbox Integration",
             "connection_status": connection_status
         })
     except Exception as e:
@@ -345,8 +404,8 @@ def agent_inbox():
 if __name__ == '__main__':
     print(f"🚀 Starting {app.config['APP_NAME']}")
     print(f"📧 Gmail Email: {GMAIL_EMAIL}")
-    print(f"🔗 LangGraph URL: {LANGGRAPH_URL}")
-    print(f"🆔 Graph ID: {GRAPH_ID}")
+    print(f"🔗 Agent Inbox URL: {AGENT_INBOX_URL}")
+    print(f"🆔 Agent Inbox ID: {AGENT_INBOX_ID}")
     print(f"🔑 API Key Available: {'Yes' if LANGSMITH_API_KEY else 'No'}")
     
     # Test connection on startup
