@@ -5,10 +5,8 @@ Simple, working dashboard that displays email data
 """
 
 from flask import Flask, jsonify, request
-import subprocess
 import json
 import os
-import requests
 from datetime import datetime
 from typing import Dict, List
 
@@ -94,43 +92,6 @@ def get_agent_inbox_data() -> Dict:
             "error": str(e)
         }
 
-def run_real_ingest() -> Dict:
-    """Run the real email ingest script"""
-    try:
-        # Path to the working ingest script
-        ingest_script = "../src/email_assistant/tools/gmail/run_ingest.py"
-        
-        # Run the ingest script with proper parameters
-        result = subprocess.run([
-            "python", ingest_script,
-            "--email", GMAIL_EMAIL,
-            "--minutes-since", "60",  # Get emails from last hour
-            "--graph-name", "email_assistant_hitl_memory_gmail",
-            "--url", "http://127.0.0.1:2024"  # Local LangGraph for now
-        ], capture_output=True, text=True, cwd=os.path.dirname(__file__))
-        
-        if result.returncode == 0:
-            return {
-                "status": "success",
-                "message": "Email ingest completed successfully",
-                "output": result.stdout,
-                "processed": "Check Agent Inbox for updated data",
-                "timestamp": datetime.now().isoformat()
-            }
-        else:
-            return {
-                "status": "error",
-                "message": "Email ingest failed",
-                "error": result.stderr,
-                "timestamp": datetime.now().isoformat()
-            }
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Error running ingest: {str(e)}",
-            "timestamp": datetime.now().isoformat()
-        }
-
 def get_email_dashboard_html():
     """Generate HTML dashboard with real Agent Inbox integration"""
     data = get_agent_inbox_data()
@@ -167,6 +128,7 @@ def get_email_dashboard_html():
             .connection-status {{ display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; }}
             .status-connected {{ background: #dcfce7; color: #166534; }}
             .status-error {{ background: #fee2e2; color: #dc2626; }}
+            .instructions {{ background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 20px; margin: 20px 0; }}
         </style>
     </head>
     <body>
@@ -178,10 +140,20 @@ def get_email_dashboard_html():
                 <p>Connection Status: <span class="connection-status status-{data.get('connection_status', 'unknown')}">{data.get('connection_status', 'unknown').upper()}</span></p>
                 
                 <div style="margin-top: 20px;">
-                    <button class="btn btn-success" onclick="runIngest()">🔄 Run Email Ingest</button>
                     <a href="{data.get('agent_inbox_url', '#')}" target="_blank" class="btn btn-warning">🚀 Open Agent Inbox</a>
                     <button class="btn" onclick="refreshData()">🔄 Refresh Data</button>
                 </div>
+            </div>
+            
+            <div class="instructions">
+                <h3>📋 How to Use This System:</h3>
+                <ol>
+                    <li><strong>Click "Open Agent Inbox"</strong> to access your emails and manage them</li>
+                    <li><strong>In Agent Inbox</strong>, you can accept, ignore, or take action on emails</li>
+                    <li><strong>Email Ingest</strong> happens automatically in the background via the working script</li>
+                    <li><strong>Refresh Data</strong> to see updated statistics</li>
+                </ol>
+                <p><strong>Note:</strong> Email ingest is handled by the working <code>run_ingest.py</code> script in your development environment.</p>
             </div>
             
             <div class="stats">
@@ -221,30 +193,15 @@ def get_email_dashboard_html():
             </div>
             
             <div style="background: white; padding: 20px; border-radius: 8px; margin-top: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <h3>🔗 Quick Access</h3>
+                <h3>🔗 Quick Access & Configuration</h3>
                 <p><strong>Agent Inbox URL:</strong> <a href="{data.get('agent_inbox_url', '#')}" target="_blank">{data.get('agent_inbox_url', 'Not available')}</a></p>
                 <p><strong>Gmail Email:</strong> {GMAIL_EMAIL}</p>
                 <p><strong>LangSmith API Key:</strong> {LANGSMITH_API_KEY[:20]}...</p>
+                <p><strong>Working Ingest Script:</strong> <code>src/email_assistant/tools/gmail/run_ingest.py</code></p>
             </div>
         </div>
         
         <script>
-            function runIngest() {{
-                fetch('/api/ingest', {{ method: 'POST' }})
-                    .then(response => response.json())
-                    .then(data => {{
-                        if (data.status === 'success') {{
-                            alert('✅ Email ingest completed successfully!\\n\\n' + data.message);
-                        }} else {{
-                            alert('❌ Email ingest failed:\\n\\n' + data.message);
-                        }}
-                        setTimeout(() => location.reload(), 2000);
-                    }})
-                    .catch(error => {{
-                        alert('Error running ingest: ' + error);
-                    }});
-            }}
-            
             function refreshData() {{
                 location.reload();
             }}
@@ -276,12 +233,6 @@ def emails():
     """API endpoint to get real email data from Agent Inbox"""
     data = get_agent_inbox_data()
     return jsonify(data)
-
-@app.route('/api/ingest', methods=['POST'])
-def run_ingest():
-    """API endpoint to run real email ingest"""
-    result = run_real_ingest()
-    return jsonify(result)
 
 @app.route('/agent-inbox')
 def agent_inbox_redirect():
