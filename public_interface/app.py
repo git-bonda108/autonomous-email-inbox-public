@@ -124,47 +124,284 @@ def get_email_dashboard_html():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>My Autonomous Email Inbox - Production</title>
         <style>
-            body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }}
-            .container {{ max-width: 1200px; margin: 0 auto; }}
-            .header {{ background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-            .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px; }}
-            .stat-card {{ background: white; padding: 20px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-            .stat-number {{ font-size: 2em; font-weight: bold; color: #2563eb; }}
-            .stat-label {{ color: #666; margin-top: 5px; }}
-            .emails {{ background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-            .email-item {{ border-bottom: 1px solid #eee; padding: 15px 0; }}
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            
+            body {{ 
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                color: #2d3748;
+            }}
+            
+            .container {{ 
+                max-width: 1200px; 
+                margin: 0 auto; 
+                padding: 20px;
+            }}
+            
+            .header {{ 
+                background: rgba(255, 255, 255, 0.95); 
+                padding: 30px; 
+                border-radius: 20px; 
+                margin-bottom: 30px; 
+                box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }}
+            
+            .header h1 {{ 
+                font-size: 2.5em; 
+                font-weight: 700; 
+                background: linear-gradient(135deg, #667eea, #764ba2);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                margin-bottom: 20px;
+                text-align: center;
+            }}
+            
+            .stats {{ 
+                display: grid; 
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+                gap: 25px; 
+                margin-bottom: 30px; 
+            }}
+            
+            .stat-card {{ 
+                background: rgba(255, 255, 255, 0.95); 
+                padding: 30px; 
+                border-radius: 20px; 
+                text-align: center; 
+                box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+            }}
+            
+            .stat-card:hover {{
+                transform: translateY(-5px);
+                box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+            }}
+            
+            .stat-number {{ 
+                font-size: 3em; 
+                font-weight: 800; 
+                background: linear-gradient(135deg, #667eea, #764ba2);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                margin-bottom: 10px;
+            }}
+            
+            .stat-label {{ 
+                color: #4a5568; 
+                font-size: 1.1em;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }}
+            
+            .emails {{ 
+                background: rgba(255, 255, 255, 0.95); 
+                padding: 30px; 
+                border-radius: 20px; 
+                box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                margin-bottom: 30px;
+            }}
+            
+            .emails h2 {{ 
+                font-size: 2em; 
+                margin-bottom: 20px; 
+                color: #2d3748;
+                text-align: center;
+            }}
+            
+            .email-item {{ 
+                border-bottom: 2px solid #e2e8f0; 
+                padding: 25px 0; 
+                transition: all 0.3s ease;
+            }}
+            
+            .email-item:hover {{
+                background: rgba(102, 126, 234, 0.05);
+                border-radius: 15px;
+                padding-left: 20px;
+                padding-right: 20px;
+            }}
+            
             .email-item:last-child {{ border-bottom: none; }}
-            .email-subject {{ font-weight: bold; color: #333; }}
-            .email-from {{ color: #666; font-size: 0.9em; }}
-            .email-status {{ display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; }}
-            .status-processed {{ background: #dcfce7; color: #166534; }}
-            .status-waiting {{ background: #fef3c7; color: #92400e; }}
-            .btn {{ background: #2563eb; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin: 5px; }}
-            .btn:hover {{ background: #1d4ed8; }}
-            .btn-success {{ background: #059669; }}
-            .btn-success:hover {{ background: #047857; }}
-            .btn-warning {{ background: #d97706; }}
-            .btn-warning:hover {{ background: #b45309; }}
-            .connection-status {{ display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; }}
-            .status-connected {{ background: #dcfce7; color: #166534; }}
-            .status-error {{ background: #fee2e2; color: #dc2626; }}
-            .instructions {{ background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 20px; margin: 20px 0; }}
-            .refresh-info {{ background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 15px 0; text-align: center; }}
-            .spinner {{ display: none; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #2563eb; border-radius: 50%; animation: spin 1s linear infinite; margin-left: 10px; }}
-            @keyframes spin {{ 0% {{ transform: rotate(0deg); }} 100% {{ transform: rotate(360deg); }} }}
-            .refresh-status {{ background: #dcfce7; border: 1px solid #059669; border-radius: 8px; padding: 15px; margin: 15px 0; text-align: center; }}
-            .real-data-badge {{ background: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; margin-left: 10px; }}
+            
+            .email-subject {{ 
+                font-weight: 700; 
+                color: #8b5cf6; 
+                font-size: 1.3em;
+                margin-bottom: 10px;
+            }}
+            
+            .email-from {{ 
+                color: #4a5568; 
+                font-size: 1em; 
+                margin-bottom: 15px;
+                font-weight: 500;
+            }}
+            
+            .email-status {{ 
+                display: inline-block; 
+                padding: 8px 16px; 
+                border-radius: 25px; 
+                font-size: 0.9em; 
+                font-weight: 600;
+                margin-bottom: 15px;
+            }}
+            
+            .status-processed {{ 
+                background: linear-gradient(135deg, #48bb78, #38a169); 
+                color: white;
+                box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
+            }}
+            
+            .status-waiting {{ 
+                background: linear-gradient(135deg, #ed8936, #dd6b20); 
+                color: white;
+                box-shadow: 0 4px 15px rgba(237, 137, 54, 0.3);
+            }}
+            
+            .btn {{ 
+                background: linear-gradient(135deg, #667eea, #764ba2); 
+                color: white; 
+                padding: 15px 30px; 
+                border: none; 
+                border-radius: 25px; 
+                cursor: pointer; 
+                font-size: 1.1em; 
+                margin: 8px; 
+                font-weight: 600;
+                transition: all 0.3s ease;
+                box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            }}
+            
+            .btn:hover {{ 
+                transform: translateY(-2px);
+                box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
+            }}
+            
+            .btn-success {{ 
+                background: linear-gradient(135deg, #48bb78, #38a169);
+                box-shadow: 0 8px 25px rgba(72, 187, 120, 0.3);
+            }}
+            
+            .btn-success:hover {{
+                box-shadow: 0 12px 35px rgba(72, 187, 120, 0.4);
+            }}
+            
+            .btn-warning {{ 
+                background: linear-gradient(135deg, #ed8936, #dd6b20);
+                box-shadow: 0 8px 25px rgba(237, 137, 54, 0.3);
+            }}
+            
+            .btn-warning:hover {{
+                box-shadow: 0 12px 35px rgba(237, 137, 54, 0.4);
+            }}
+            
+            .instructions {{ 
+                background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); 
+                border: 2px solid rgba(102, 126, 234, 0.2); 
+                border-radius: 20px; 
+                padding: 25px; 
+                margin: 25px 0; 
+                backdrop-filter: blur(10px);
+            }}
+            
+            .instructions h3 {{ 
+                color: #2d3748; 
+                margin-bottom: 15px;
+                font-size: 1.4em;
+            }}
+            
+            .instructions ol {{ 
+                padding-left: 20px; 
+                line-height: 1.8;
+            }}
+            
+            .instructions li {{ 
+                margin-bottom: 10px; 
+                color: #4a5568;
+            }}
+            
+            .refresh-info {{ 
+                background: linear-gradient(135deg, rgba(237, 137, 54, 0.1), rgba(221, 107, 32, 0.1)); 
+                border: 2px solid rgba(237, 137, 54, 0.2); 
+                border-radius: 20px; 
+                padding: 20px; 
+                margin: 25px 0; 
+                text-align: center; 
+                backdrop-filter: blur(10px);
+            }}
+            
+            .refresh-info strong {{ 
+                color: #2d3748; 
+                font-size: 1.1em;
+            }}
+            
+            .real-data-badge {{ 
+                background: linear-gradient(135deg, #48bb78, #38a169); 
+                color: white; 
+                padding: 6px 12px; 
+                border-radius: 20px; 
+                font-size: 0.8em; 
+                margin-left: 10px; 
+                font-weight: 600;
+                box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
+            }}
+            
+            .spinner {{ 
+                display: none; 
+                width: 20px; 
+                height: 20px; 
+                border: 2px solid #f3f3f3; 
+                border-top: 2px solid #667eea; 
+                border-radius: 50%; 
+                animation: spin 1s linear infinite; 
+                margin-left: 10px; 
+            }}
+            
+            @keyframes spin {{ 
+                0% {{ transform: rotate(0deg); }} 
+                100% {{ transform: rotate(360deg); }} 
+            }}
+            
+            .tool-info {{ 
+                background: rgba(102, 126, 234, 0.1); 
+                padding: 15px; 
+                border-radius: 15px; 
+                margin-top: 15px;
+                border-left: 4px solid #667eea;
+            }}
+            
+            .timestamp {{ 
+                color: #718096; 
+                font-size: 0.9em; 
+                font-style: italic;
+                margin-top: 10px;
+            }}
+            
+            .header-buttons {{
+                display: flex;
+                justify-content: center;
+                gap: 15px;
+                flex-wrap: wrap;
+                margin-top: 25px;
+            }}
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
-                <h1>📧 My Autonomous Email Inbox - Production</h1>
-                <p>Connected to: {GMAIL_EMAIL}</p>
-                <p>Last updated: {data.get('last_updated', 'Unknown')}</p>
-                <p>Connection Status: <span class="connection-status status-{data.get('connection_status', 'unknown')}">{data.get('connection_status', 'unknown').upper()}</span></p>
+                <h1>📧 My Autonomous Email Inbox</h1>
                 
-                <div style="margin-top: 20px;">
+                <div class="header-buttons">
                     <a href="{data.get('agent_inbox_url', '#')}" target="_blank" class="btn btn-warning">🚀 Open Agent Inbox</a>
                     <button class="btn btn-success" onclick="refreshData()" id="refreshBtn">
                         🔄 Refresh Data
@@ -210,9 +447,11 @@ def get_email_dashboard_html():
             
             <div class="emails">
                 <h2>📬 Recent Emails from Agent Inbox</h2>
-                <p><strong>Source:</strong> {data.get('source', 'Unknown')}</p>
-                <p><strong>Last Refresh:</strong> {data.get('refresh_timestamp', 'Unknown')}</p>
-                <p><strong>Data Status:</strong> <span class="real-data-badge">Real AgentInbox Data</span></p>
+                <p style="text-align: center; margin-bottom: 25px; color: #4a5568;">
+                    <strong>Source:</strong> {data.get('source', 'Unknown')} | 
+                    <strong>Last Refresh:</strong> {data.get('refresh_timestamp', 'Unknown')}
+                </p>
+                
                 {''.join([f'''
                 <div class="email-item">
                     <div class="email-subject">{email.get('subject', 'No Subject')}</div>
@@ -220,23 +459,15 @@ def get_email_dashboard_html():
                     <div class="email-status status-{email.get('status', 'unknown')}">
                         {'✅ Processed' if email.get('status') == 'processed' else '⏳ Waiting Action' if email.get('status') == 'waiting_action' else '❓ Unknown'}
                     </div>
-                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">
-                        Tool: {email.get('tool_called', 'None')} | Next Action: {email.get('next_action', 'None')}
+                    <div class="tool-info">
+                        <strong>Tool:</strong> {email.get('tool_called', 'None')} | 
+                        <strong>Next Action:</strong> {email.get('next_action', 'None')}
                     </div>
-                    <div style="margin-top: 5px; color: #999; font-size: 0.8em;">
-                        Timestamp: {email.get('timestamp', 'Unknown')}
+                    <div class="timestamp">
+                        📅 {email.get('timestamp', 'Unknown')}
                     </div>
                 </div>
                 ''' for email in data.get('emails', [])])}
-            </div>
-            
-            <div style="background: white; padding: 20px; border-radius: 8px; margin-top: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <h3>🔗 Quick Access & Configuration</h3>
-                <p><strong>Agent Inbox URL:</strong> <a href="{data.get('agent_inbox_url', '#')}" target="_blank">{data.get('agent_inbox_url', 'Not available')}</a></p>
-                <p><strong>Gmail Email:</strong> {GMAIL_EMAIL}</p>
-                <p><strong>LangSmith API Key:</strong> {LANGSMITH_API_KEY[:20]}...</p>
-                <p><strong>Working Ingest Script:</strong> <code>src/email_assistant/tools/gmail/run_ingest.py</code></p>
-                <p><strong>Data Source:</strong> <span class="real-data-badge">Real AgentInbox Integration</span></p>
             </div>
         </div>
         
